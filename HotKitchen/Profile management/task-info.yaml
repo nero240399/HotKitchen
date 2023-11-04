@@ -1,84 +1,5 @@
 type: edu
 files:
-  - name: src/plugins/Routing.kt
-    visible: true
-    text: |
-      package hotkitchen.plugins
-      
-      import database.User
-      import hotkitchen.database.DatabaseFactory
-      import hotkitchen.model.UserModel
-      import hotkitchen.model.UserResponse
-      import io.ktor.http.*
-      import io.ktor.server.application.*
-      import io.ktor.server.request.*
-      import io.ktor.server.response.*
-      import io.ktor.server.routing.*
-      import kotlinx.serialization.encodeToString
-      import kotlinx.serialization.json.Json
-      import org.jetbrains.exposed.sql.SchemaUtils
-      import org.jetbrains.exposed.sql.insert
-      import org.jetbrains.exposed.sql.select
-      import org.jetbrains.exposed.sql.transactions.transaction
-      
-      
-      fun Application.configureRouting() {
-          routing {
-              post("/signup") {
-                  val user = Json.decodeFromString<UserModel>(call.receiveText())
-                  DatabaseFactory.connect()
-                  transaction {
-                      SchemaUtils.createMissingTablesAndColumns(User)
-                  }
-                  var check = true
-                  transaction {
-                      val selectedUser = User.select {
-                          User.email eq user.email
-                      }.firstOrNull()
-                      if (selectedUser != null) {
-                          check = false
-                      }
-                  }
-                  if (!check) {
-                      call.response.status(HttpStatusCode(403, "Forbidden"))
-                      call.respond(Json.encodeToString(UserResponse("Registration failed")))
-                      return@post
-                  }
-                  transaction {
-                      User.insert {
-                          it[email] = user.email
-                          it[userType] = user.userType
-                          it[password] = user.password
-                      }
-                  }
-                  call.response.status(HttpStatusCode(200, "OK"))
-                  call.respond(Json.encodeToString(UserResponse("Signed Up")))
-              }
-      
-              post("/signin") {
-                  val user = Json { isLenient = true }.decodeFromString<UserModel>(call.receiveText())
-                  DatabaseFactory.connect()
-                  var check = true
-                  transaction {
-                      val selectedUser = User.select {
-                          User.email eq user.email
-                          User.password eq user.password
-                      }.firstOrNull()
-                      if (selectedUser == null) {
-                          check = false
-                      }
-                  }
-                  if (!check) {
-                      call.response.status(HttpStatusCode(403, "Forbidden"))
-                      call.respond(Json.encodeToString(UserResponse("Authorization failed")))
-                      return@post
-                  }
-                  call.response.status(HttpStatusCode(200, "OK"))
-                  call.respond(Json.encodeToString(UserResponse("Signed In")))
-              }
-          }
-      }
-    learner_created: false
   - name: src/resources/application.conf
     visible: true
     text: |-
@@ -154,63 +75,6 @@ files:
           implementation("com.zaxxer:HikariCP:5.0.1")
           implementation("com.h2database:h2:2.1.214")
           implementation("org.postgresql:postgresql:42.3.8")
-      }
-    learner_created: false
-  - name: src/model/UserResponse.kt
-    visible: true
-    text: |
-      package hotkitchen.model
-      
-      import kotlinx.serialization.Serializable
-      
-      @Serializable
-      data class UserResponse(val status: String)
-    learner_created: false
-  - name: src/database/DatabaseFactory.kt
-    visible: true
-    text: |-
-      package hotkitchen.database
-      
-      import database.User
-      import org.jetbrains.exposed.sql.Database
-      import org.jetbrains.exposed.sql.SchemaUtils
-      import org.jetbrains.exposed.sql.transactions.transaction
-      
-      object DatabaseFactory {
-          private val driverClassName = "org.h2.Driver"
-          private val jdbcURL = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false"
-      
-          fun connect(): Database {
-              return Database.connect(jdbcURL, driverClassName)
-          }
-      }
-    learner_created: false
-  - name: src/model/AuthenticationModel.kt
-    visible: true
-    text: |
-      package hotkitchen.model
-      
-      import kotlinx.serialization.Serializable
-      
-      @Serializable
-      data class UserModel(
-          val email: String,
-          val userType: String = "",
-          val password: String
-      )
-    learner_created: false
-  - name: src/database/User.kt
-    visible: true
-    text: |-
-      package database
-      
-      import org.jetbrains.exposed.dao.id.IntIdTable
-      import org.jetbrains.exposed.sql.Column
-      
-      object User : IntIdTable() {
-          val email: Column<String> = varchar("name", 50)
-          val userType: Column<String> = varchar("userType", 50)
-          val password: Column<String> = varchar("password", 50)
       }
     learner_created: false
   - name: test/HotKitchenTest.kt
@@ -490,6 +354,323 @@ files:
           }
       }
     learner_created: false
+  - name: src/validate/ValidateRoute.kt
+    visible: true
+    text: |-
+      package hotkitchen.validate
+      
+      import hotkitchen.user.UserDao
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.auth.*
+      import io.ktor.server.auth.jwt.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      
+      fun Route.validateRoute(userDao: UserDao) {
+      
+          authenticate {
+              get("/validate") {
+                  try {
+                      val principal = call.principal<JWTPrincipal>()
+                      val email = principal!!.payload.getClaim("email").asString()
+                      val user = userDao.getUser(email)
+                      call.respond(HttpStatusCode.OK, "Hello, ${user?.userType} $email")
+                  } catch (e: Exception) {
+                      call.respond(HttpStatusCode.InternalServerError, e.message!!)
+                  }
+              }
+          }
+      }
+    learner_created: true
+  - name: src/authentication/AuthenticationRoute.kt
+    visible: true
+    text: |-
+      package hotkitchen.authentication
+      
+      import com.auth0.jwt.JWT
+      import com.auth0.jwt.algorithms.Algorithm
+      import hotkitchen.Secret
+      import hotkitchen.database.daos.InvalidEmailOrPassword
+      import hotkitchen.model.Response
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.request.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      import kotlinx.serialization.encodeToString
+      import kotlinx.serialization.json.Json
+      import org.jetbrains.exposed.sql.Except
+      
+      fun Route.authenticationRoute(authenticationDao: AuthenticationDao) {
+          post("/signin") {
+              val userAuthentication = call.receive<UserAuthentication>()
+              try {
+                  val tokenAuthentication = JWT.create()
+                      .withClaim("email", userAuthentication.email)
+                      .withClaim("password", userAuthentication.password)
+                      .sign(Algorithm.HMAC256(Secret))
+                  val token = authenticationDao.signIn(userAuthentication.copy(password = tokenAuthentication))
+                  call.response.status(HttpStatusCode.OK)
+                  call.respondText { Json.encodeToString(Response(token = token)) }
+              } catch (e: Exception) {
+                  call.respondText(
+                      Json.encodeToString(Response(e.message!!)),
+                      ContentType.Application.Json,
+                      HttpStatusCode.Forbidden
+                  )
+              }
+          }
+      }
+    learner_created: true
+  - name: src/user/UserRoute.kt
+    visible: true
+    text: |-
+      package hotkitchen.user
+      
+      import com.auth0.jwt.JWT
+      import com.auth0.jwt.algorithms.Algorithm
+      import hotkitchen.model.Response
+      import hotkitchen.Secret
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.request.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      import kotlinx.serialization.encodeToString
+      import kotlinx.serialization.json.Json
+      import org.apache.commons.validator.routines.EmailValidator
+      
+      fun Route.userRoute(userDao: UserDao) {
+          post("/signup") {
+              val user = call.receive<User>()
+              try {
+                  if (!user.email.isValidEmail()) {
+                      throw InvalidEmail
+                  }
+                  if (!user.password.isValidPassword()) {
+                      throw InvalidPassword
+                  }
+                  val token = JWT.create()
+                      .withClaim("email", user.email)
+                      .withClaim("password", user.password)
+                      .sign(Algorithm.HMAC256(Secret))
+                  userDao.signUp(user.copy(password = token))
+                  call.response.status(HttpStatusCode.OK)
+                  call.respondText { Json.encodeToString(Response(token = token)) }
+              } catch (e: Exception) {
+                  call.respondText(
+                      Json.encodeToString(Response(e.message ?: "")),
+                      contentType = ContentType.Application.Json,
+                      HttpStatusCode.Forbidden
+                  )
+              }
+          }
+      
+      }
+      
+      object InvalidEmail : Exception("Invalid email") {
+          private fun readResolve(): Any = InvalidEmail
+      }
+      
+      object InvalidPassword : Exception("Invalid password") {
+          private fun readResolve(): Any = InvalidPassword
+      }
+      
+      private fun String.isValidEmail(): Boolean {
+          return EmailValidator.getInstance().isValid(this) && this.split("@")[0].all { it.isLetterOrDigit() }
+      }
+      
+      private fun String.isValidPassword(): Boolean {
+          return this.length >= 6 && this.any { it.isLetter() } && this.any { it.isDigit() }
+      }
+    learner_created: true
+  - name: src/authentication/AuthenticationModel.kt
+    visible: true
+    text: |
+      package hotkitchen.authentication
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class UserAuthentication(
+          val email: String,
+          val password: String
+      )
+    learner_created: true
+  - name: src/model/Response.kt
+    visible: true
+    text: |
+      package hotkitchen.model
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class Response(
+          val status: String = "",
+          val token: String = ""
+      )
+    learner_created: true
+  - name: src/user/UserModel.kt
+    visible: true
+    text: |
+      package hotkitchen.user
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class User(
+          val email: String,
+          val userType: String,
+          val password: String
+      )
+    learner_created: true
+  - name: src/database/entities/UserEntity.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.entities
+      
+      import org.jetbrains.exposed.dao.id.IntIdTable
+      import org.jetbrains.exposed.sql.Column
+      
+      object UserEntity : IntIdTable() {
+          val email: Column<String> = varchar("email", 50)
+          val userType: Column<String> = varchar("userType", 50)
+          val password: Column<String> = varchar("password", 200)
+      }
+    learner_created: true
+  - name: src/database/DatabaseConnection.kt
+    visible: true
+    text: |-
+      package hotkitchen.database
+      
+      import hotkitchen.database.entities.UserEntity
+      import io.ktor.server.application.*
+      import org.jetbrains.exposed.sql.*
+      import org.jetbrains.exposed.sql.Database
+      import org.jetbrains.exposed.sql.transactions.transaction
+      
+      object DatabaseConnection {
+          private val db = Database.connect(
+              "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false",
+              driver = "org.h2.Driver"
+          )
+      
+          fun init() {
+              transaction(db) {
+                  addLogger(StdOutSqlLogger)
+                  SchemaUtils.create(UserEntity)
+              }
+          }
+      
+          fun <T> execute(blk: Transaction.() -> T): T =
+              transaction(db, statement = blk)
+      }
+      
+      fun Application.setupDb() {
+          DatabaseConnection.init()
+      }
+    learner_created: true
+  - name: src/user/UserDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.user
+      
+      interface UserDao {
+      
+          fun signUp(user: User)
+      
+          fun getUser(email: String): User?
+      }
+    learner_created: true
+  - name: src/authentication/AuthenticationDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.authentication
+      
+      interface AuthenticationDao {
+          fun signIn(userAuthentication: UserAuthentication): String
+      }
+    learner_created: true
+  - name: src/database/daos/DefaultAuthenticationDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.daos
+      
+      import hotkitchen.authentication.AuthenticationDao
+      import hotkitchen.authentication.UserAuthentication
+      import hotkitchen.database.DatabaseConnection
+      import hotkitchen.database.entities.UserEntity
+      import org.jetbrains.exposed.sql.select
+      
+      class DefaultAuthenticationDao : AuthenticationDao {
+          override fun signIn(userAuthentication: UserAuthentication): String {
+              var password = ""
+              DatabaseConnection.execute {
+                  val user = UserEntity.select {
+                      UserEntity.email eq userAuthentication.email
+                      UserEntity.password eq userAuthentication.password
+                  }.singleOrNull() ?: throw InvalidEmailOrPassword
+                  password = user[UserEntity.password]
+              }
+              return password
+          }
+      }
+      
+      object InvalidEmailOrPassword : Exception("Invalid email or password") {
+          private fun readResolve(): Any = InvalidEmailOrPassword
+      }
+    learner_created: true
+  - name: src/database/daos/DefaultUserDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.daos
+      
+      import hotkitchen.database.DatabaseConnection
+      import hotkitchen.database.entities.UserEntity
+      import hotkitchen.user.User
+      import hotkitchen.user.UserDao
+      import org.jetbrains.exposed.sql.insert
+      import org.jetbrains.exposed.sql.select
+      
+      class DefaultUserDao : UserDao {
+      
+          override fun signUp(user: User) {
+              DatabaseConnection.execute {
+                  if (UserEntity.select {
+                          UserEntity.email eq user.email
+                      }.firstOrNull() != null) {
+                      throw UserAlreadyExists
+                  }
+                  UserEntity.insert {
+                      it[email] = user.email
+                      it[userType] = user.userType
+                      it[password] = user.password
+                  }
+              }
+          }
+      
+          override fun getUser(email: String): User? {
+              var user: User? = null
+              DatabaseConnection.execute {
+                  user = UserEntity.select {
+                      UserEntity.email eq email
+                  }.singleOrNull()?.let {
+                      User(
+                          email = it[UserEntity.email],
+                          password = it[UserEntity.password],
+                          userType = it[UserEntity.userType],
+                      )
+                  }
+              }
+              return user
+          }
+      }
+      
+      object UserAlreadyExists : Exception("User already exists") {
+          private fun readResolve(): Any = UserAlreadyExists
+      }
+    learner_created: true
 feedback_link: https://hyperskill.org/learn/step/22605#comment
 status: Unchecked
 record: -1
