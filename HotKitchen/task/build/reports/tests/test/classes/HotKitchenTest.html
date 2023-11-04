@@ -41,7 +41,7 @@
 </td>
 <td>
 <div class="infoBox" id="duration">
-<div class="counter">1.053s</div>
+<div class="counter">1.439s</div>
 <p>duration</p>
 </div>
 </td>
@@ -79,7 +79,7 @@
 </thead>
 <tr>
 <td class="success">start</td>
-<td class="success">1.053s</td>
+<td class="success">1.439s</td>
 <td class="success">passed</td>
 </tr>
 </table>
@@ -89,29 +89,48 @@
 <span class="code">
 <pre>?[1;31m
 Start test 1?[0m
-?[0;34m14:25:49.255 [DefaultDispatcher-worker-1 @call-context#2] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-?[0m?[0;34m14:25:49.550 [DefaultDispatcher-worker-1 @call-context#2] DEBUG Exposed - SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'MODE'
+?[0;34m01:48:25.843 [DefaultDispatcher-worker-2 @call-context#2] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.269 [DefaultDispatcher-worker-2 @call-context#2] DEBUG Exposed - SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'MODE'
 ?[0m?[0;34mSQL: SELECT SETTING_VALUE FROM INFORMATION_SCHEMA.SETTINGS WHERE SETTING_NAME = 'MODE'
-?[0m?[0;34m14:25:49.573 [DefaultDispatcher-worker-1 @call-context#2] DEBUG Exposed - CREATE TABLE IF NOT EXISTS UserEntity (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(50) NOT NULL, userType VARCHAR(50) NOT NULL, password VARCHAR(50) NOT NULL)
-?[0m?[0;34mSQL: CREATE TABLE IF NOT EXISTS UserEntity (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(50) NOT NULL, userType VARCHAR(50) NOT NULL, password VARCHAR(50) NOT NULL)
-?[0m?[0;34m14:25:49.606 [DefaultDispatcher-worker-1 @call-context#2] INFO ktor.test - Application started in 0.359 seconds.
-?[0m?[0;34m14:25:49.688 [DefaultDispatcher-worker-1 @request#2] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.email = '1699082748729jmail.com'
-?[0m?[0;34m14:25:49.695 [DefaultDispatcher-worker-1 @request#2] DEBUG Exposed - INSERT INTO UserEntity (email, password, userType) VALUES ('1699082748729jmail.com', 'correct82748733', 'testUser')
+?[0m?[0;34m01:48:26.286 [DefaultDispatcher-worker-2 @call-context#2] DEBUG Exposed - CREATE TABLE IF NOT EXISTS UserEntity (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(50) NOT NULL, userType VARCHAR(50) NOT NULL, password VARCHAR(200) NOT NULL)
+?[0m?[0;34mSQL: CREATE TABLE IF NOT EXISTS UserEntity (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(50) NOT NULL, userType VARCHAR(50) NOT NULL, password VARCHAR(200) NOT NULL)
+?[0m?[0;34m01:48:26.317 [DefaultDispatcher-worker-2 @call-context#2] INFO ktor.test - Application started in 0.489 seconds.
 ?[1;31m
 Start test 2?[0m
-?[0;34m14:25:49.740 [DefaultDispatcher-worker-2 @call-context#9] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-?[0m?[0;34m14:25:49.742 [DefaultDispatcher-worker-2 @call-context#9] INFO ktor.test - Application started in 0.003 seconds.
-?[0m?[0;34m14:25:49.746 [DefaultDispatcher-worker-2 @request#9] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.email = '1699082748729jmail.com'
+?[0m?[0;34m01:48:26.470 [DefaultDispatcher-worker-2 @call-context#45] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.474 [DefaultDispatcher-worker-2 @call-context#45] INFO ktor.test - Application started in 0.004 seconds.
 ?[1;31m
 Start test 3?[0m
-?[0;34m14:25:49.757 [DefaultDispatcher-worker-3 @call-context#16] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-?[0m?[0;34m14:25:49.759 [DefaultDispatcher-worker-3 @call-context#16] INFO ktor.test - Application started in 0.003 seconds.
-?[0m?[0;34m14:25:49.764 [DefaultDispatcher-worker-3 @request#16] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.password = 'wrong82748733'
+?[0;34m01:48:26.503 [DefaultDispatcher-worker-4 @call-context#70] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.508 [DefaultDispatcher-worker-4 @call-context#70] INFO ktor.test - Application started in 0.005 seconds.
+?[0m?[0;34m01:48:26.565 [DefaultDispatcher-worker-4 @request#70] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.email = '1699123705264@mail.com'
+?[0m?[0;34m01:48:26.572 [DefaultDispatcher-worker-4 @request#70] DEBUG Exposed - INSERT INTO UserEntity (email, password, userType) VALUES ('1699123705264@mail.com', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IjE2OTkxMjM3MDUyNjRAbWFpbC5jb20iLCJwYXNzd29yZCI6InBhc3N3b3JkMTY5OTEyMzcwNTI2NCJ9.gat7Z9PmqGwryQsZm5Ax3Csnqxz63LcSkNra75rk-vg', 'client')
 ?[1;31m
 Start test 4?[0m
-?[0m?[0;34m14:25:49.773 [DefaultDispatcher-worker-3 @call-context#23] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-?[0m?[0;34m14:25:49.775 [DefaultDispatcher-worker-3 @call-context#23] INFO ktor.test - Application started in 0.003 seconds.
-?[0m?[0;34m14:25:49.778 [DefaultDispatcher-worker-3 @request#23] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.password = 'correct82748733'
+?[0m?[0;34m01:48:26.581 [DefaultDispatcher-worker-2 @call-context#77] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.583 [DefaultDispatcher-worker-2 @call-context#77] INFO ktor.test - Application started in 0.003 seconds.
+?[0m?[0;34m01:48:26.586 [DefaultDispatcher-worker-2 @request#77] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.email = '1699123705264@mail.com'
+?[1;31m
+Start test 5?[0m
+?[0m?[0;34m01:48:26.596 [DefaultDispatcher-worker-2 @call-context#84] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.599 [DefaultDispatcher-worker-2 @call-context#84] INFO ktor.test - Application started in 0.003 seconds.
+?[0m?[0;34m01:48:26.606 [DefaultDispatcher-worker-2 @request#84] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.password = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IndoeT9kb2VzP3RoaXM_ZW1haWw_ZXhpc3RzIiwicGFzc3dvcmQiOiJwYXNzd29yZDE2OTkxMjM3MDUyNjQifQ.zgCtFFFysYtO-uKhdjGBJlDRj52g9CE8HVWyNWA0-7c'
+?[0m?[0;34m01:48:26.611 [DefaultDispatcher-worker-2 @request#90] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.password = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IjE2OTkxMjM3MDUyNjRAbWFpbC5jb20iLCJwYXNzd29yZCI6ImNvbXBsZXRlbHlXcm9uZzEyMyJ9.7qTM-2vfyDza76FpbiLFWNi0pdqiuEF6g7D8xHnBrLM'
+?[1;31m
+Start test 6?[0m
+?[0m?[0;34m01:48:26.619 [DefaultDispatcher-worker-2 @call-context#94] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.625 [DefaultDispatcher-worker-2 @call-context#94] INFO ktor.test - Application started in 0.006 seconds.
+?[0m?[0;34m01:48:26.628 [DefaultDispatcher-worker-2 @request#94] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.password = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6IjE2OTkxMjM3MDUyNjRAbWFpbC5jb20iLCJwYXNzd29yZCI6InBhc3N3b3JkMTY5OTEyMzcwNTI2NCJ9.gat7Z9PmqGwryQsZm5Ax3Csnqxz63LcSkNra75rk-vg'
+?[1;31m
+Start test 7?[0m
+?[0m?[0;34m01:48:26.641 [DefaultDispatcher-worker-2 @call-context#101] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.644 [DefaultDispatcher-worker-2 @call-context#101] INFO ktor.test - Application started in 0.004 seconds.
+?[1;31m
+Start test 8?[0m
+?[0m?[0;34m01:48:26.664 [DefaultDispatcher-worker-2 @call-context#111] INFO ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+?[0m?[0;34m01:48:26.667 [DefaultDispatcher-worker-2 @call-context#111] INFO ktor.test - Application started in 0.004 seconds.
+?[0m?[0;34m01:48:26.691 [DefaultDispatcher-worker-2 @request#111] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.email = '1699123705264@mail.com'
+?[0m?[0;34m01:48:26.696 [DefaultDispatcher-worker-2 @request#117] DEBUG Exposed - SELECT UserEntity.id, UserEntity.email, UserEntity.userType, UserEntity.password FROM UserEntity WHERE UserEntity.email = '1699123705264@mail.com'
 </pre>
 </span>
 </div>
@@ -123,7 +142,7 @@ Start test 4?[0m
 <input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
 </label>
 </div>Generated by 
-<a href="http://www.gradle.org">Gradle 7.6</a> at Nov 4, 2023, 2:25:49 PM</p>
+<a href="http://www.gradle.org">Gradle 7.6</a> at Nov 5, 2023, 1:48:26 AM</p>
 </div>
 </div>
 </body>
