@@ -1,20 +1,30 @@
 package hotkitchen
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import hotkitchen.authentication.authenticationRoute
 import hotkitchen.database.daos.DefaultAuthenticationDao
 import hotkitchen.database.daos.DefaultUserDao
 import hotkitchen.database.setupDb
 import hotkitchen.user.userRoute
+import hotkitchen.validate.validateRoute
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 
-fun main(args: Array<String>): Unit = EngineMain.main(args)
+const val Secret = "nero240399"
 
-fun Application.module(testing: Boolean = false) {
+fun main(args: Array<String>) = EngineMain.main(args)
+
+fun Application.module() {
+    val userDao = DefaultUserDao()
     setupDb()
     install(ContentNegotiation) {
         json(Json {
@@ -24,6 +34,32 @@ fun Application.module(testing: Boolean = false) {
     }
     routing {
         authenticationRoute(DefaultAuthenticationDao())
-        userRoute(DefaultUserDao())
+        userRoute(userDao)
+        validateRoute(userDao)
+    }
+}
+
+fun Application.authenticationModule() {
+    install(Authentication) {
+        jwt {
+            verifier(
+                JWT
+                    .require(Algorithm.HMAC256(Secret))
+                    .build()
+            )
+            validate { credential ->
+                if (credential.payload.getClaim("email").asString() != "") {
+                    JWTPrincipal(credential.payload)
+                } else {
+                    null
+                }
+            }
+            challenge { _, _ ->
+                call.respond(
+                    HttpStatusCode.Unauthorized,
+                    "All authorization must be done using a Bearer token in headers.\n"
+                )
+            }
+        }
     }
 }

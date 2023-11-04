@@ -39,4 +39,10 @@ dependencies {
     implementation("org.postgresql:postgresql:42.3.8")
     implementation "io.ktor:ktor-server-content-negotiation:$ktor_version"
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
+    implementation 'commons-validator:commons-validator:1.6'
+}
+compileKotlin {
+    kotlinOptions {
+        languageVersion = "1.9"
+    }
 }
