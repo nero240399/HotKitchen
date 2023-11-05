@@ -1,8 +1,10 @@
 package hotkitchen.user
 
-import hotkitchen.models.User
-
 interface UserDao {
 
-    fun getUser(email: String): User?
+    fun getUser(email: String): UserInfo?
+
+    fun updateUser(userInfo: UserInfo)
+
+    fun deleteUser(email: String)
 }

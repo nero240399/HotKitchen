@@ -185,7 +185,7 @@ files:
           }
       }
     learner_created: false
-  - name: src/model/AuthenticationModel.kt
+  - name: src/model/UserAuthentication.kt
     visible: true
     text: |
       package hotkitchen.model

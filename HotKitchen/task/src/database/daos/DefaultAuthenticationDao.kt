@@ -3,37 +3,52 @@ package hotkitchen.database.daos
 import hotkitchen.authentication.AuthenticationDao
 import hotkitchen.authentication.UserAuthentication
 import hotkitchen.database.DatabaseConnection
-import hotkitchen.database.entities.UserEntity
-import hotkitchen.models.User
+import hotkitchen.database.entities.UserAuthenticationEntity
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 
 class DefaultAuthenticationDao : AuthenticationDao {
-    override fun signIn(userAuthentication: UserAuthentication): String {
+    override fun signIn(user: UserAuthentication): String {
         var password = ""
         DatabaseConnection.execute {
-            val user = UserEntity.select {
-                UserEntity.email eq userAuthentication.email
-                UserEntity.password eq userAuthentication.password
+            val authentication = UserAuthenticationEntity.select {
+                UserAuthenticationEntity.email eq user.email
+                UserAuthenticationEntity.token eq user.token
             }.singleOrNull() ?: throw InvalidEmailOrPassword
-            password = user[UserEntity.password]
+            password = authentication[UserAuthenticationEntity.token]
         }
         return password
     }
 
-    override fun signUp(user: User) {
+    override fun signUp(user: UserAuthentication) {
         DatabaseConnection.execute {
-            if (UserEntity.select {
-                    UserEntity.email eq user.email
+            if (UserAuthenticationEntity.select {
+                    UserAuthenticationEntity.email eq user.email
                 }.firstOrNull() != null) {
                 throw UserAlreadyExists
             }
-            UserEntity.insert {
+            UserAuthenticationEntity.insert {
                 it[email] = user.email
                 it[userType] = user.userType
-                it[password] = user.password
+                it[token] = user.token
             }
         }
+    }
+
+    override fun getUser(email: String): UserAuthentication? {
+        var user: UserAuthentication? = null
+        DatabaseConnection.execute {
+            user = UserAuthenticationEntity.select {
+                UserAuthenticationEntity.email eq email
+            }.singleOrNull()?.let {
+                UserAuthentication(
+                    email = it[UserAuthenticationEntity.email],
+                    token = it[UserAuthenticationEntity.token],
+                    userType = it[UserAuthenticationEntity.userType],
+                )
+            }
+        }
+        return user
     }
 }
 

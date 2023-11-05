@@ -1,10 +1,10 @@
 package hotkitchen.authentication
 
-import hotkitchen.models.User
-
 interface AuthenticationDao {
 
-    fun signIn(userAuthentication: UserAuthentication): String
+    fun signIn(user: UserAuthentication): String
 
-    fun signUp(user: User)
+    fun signUp(user: UserAuthentication)
+
+    fun getUser(email: String): UserAuthentication?
 }

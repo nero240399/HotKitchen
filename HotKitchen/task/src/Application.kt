@@ -7,6 +7,7 @@ import hotkitchen.database.daos.DefaultAuthenticationDao
 import hotkitchen.database.daos.DefaultUserDao
 import hotkitchen.database.setupDb
 import hotkitchen.user.UserDao
+import hotkitchen.user.userRoute
 import hotkitchen.validate.validateRoute
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -22,8 +23,8 @@ import kotlinx.serialization.json.Json
 fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() {
-    val userDao = DefaultUserDao()
-    this.authenticationModule(userDao)
+    val authenticationDao = DefaultAuthenticationDao()
+    this.authenticationModule(authenticationDao)
     setupDb()
     install(ContentNegotiation) {
         json(Json {
@@ -32,12 +33,13 @@ fun Application.module() {
         })
     }
     routing {
-        authenticationRoute(DefaultAuthenticationDao())
-        validateRoute(userDao)
+        authenticationRoute(authenticationDao)
+        validateRoute(authenticationDao)
+        userRoute(DefaultUserDao())
     }
 }
 
-fun Application.authenticationModule(userDao: UserDao) {
+fun Application.authenticationModule(authenticationDao: DefaultAuthenticationDao) {
     val secret = environment.config.property("jwt.secret").getString()
     install(Authentication) {
         jwt {
@@ -48,7 +50,7 @@ fun Application.authenticationModule(userDao: UserDao) {
             )
             validate { credential ->
                 val email = credential.payload.getClaim("email").asString()
-                if (userDao.getUser(email) != null) {
+                if (authenticationDao.getUser(email) != null) {
                     JWTPrincipal(credential.payload)
                 } else {
                     null

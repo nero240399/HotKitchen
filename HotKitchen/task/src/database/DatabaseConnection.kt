@@ -1,6 +1,6 @@
 package hotkitchen.database
 
-import hotkitchen.database.entities.UserEntity
+import hotkitchen.database.entities.UserAuthenticationEntity
 import io.ktor.server.application.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.Database
@@ -15,7 +15,7 @@ object DatabaseConnection {
     fun init() {
         transaction(db) {
             addLogger(StdOutSqlLogger)
-            SchemaUtils.create(UserEntity)
+            SchemaUtils.create(UserAuthenticationEntity)
         }
     }
 

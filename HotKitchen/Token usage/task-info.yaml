@@ -393,7 +393,7 @@ files:
           }
       }
     learner_created: true
-  - name: src/authentication/AuthenticationModel.kt
+  - name: src/authentication/UserAuthentication.kt
     visible: true
     text: |
       package hotkitchen.authentication
@@ -536,20 +536,6 @@ files:
     learner_created: true
   - name: src/model/Response.kt
     visible: true
-    learner_created: true
-  - name: src/models/User.kt
-    visible: true
-    text: |
-      package hotkitchen.user
-      
-      import kotlinx.serialization.Serializable
-      
-      @Serializable
-      data class User(
-          val email: String,
-          val userType: String,
-          val password: String
-      )
     learner_created: true
 feedback_link: https://hyperskill.org/learn/step/22604#comment
 status: Solved
