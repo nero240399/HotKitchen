@@ -135,6 +135,6 @@ fun Route.mealRoute(authenticationDao: AuthenticationDao, mealDao: MealDao) {
     }
 }
 
-private object NotStaffException : Exception("Access denied") {
+object NotStaffException : Exception("Access denied") {
     private fun readResolve(): Any = NotStaffException
 }

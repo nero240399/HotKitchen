@@ -1,84 +1,5 @@
 type: edu
 files:
-  - name: src/plugins/Routing.kt
-    visible: true
-    text: |
-      package hotkitchen.plugins
-      
-      import database.User
-      import hotkitchen.database.DatabaseFactory
-      import hotkitchen.model.UserModel
-      import hotkitchen.model.UserResponse
-      import io.ktor.http.*
-      import io.ktor.server.application.*
-      import io.ktor.server.request.*
-      import io.ktor.server.response.*
-      import io.ktor.server.routing.*
-      import kotlinx.serialization.encodeToString
-      import kotlinx.serialization.json.Json
-      import org.jetbrains.exposed.sql.SchemaUtils
-      import org.jetbrains.exposed.sql.insert
-      import org.jetbrains.exposed.sql.select
-      import org.jetbrains.exposed.sql.transactions.transaction
-      
-      
-      fun Application.configureRouting() {
-          routing {
-              post("/signup") {
-                  val user = Json.decodeFromString<UserModel>(call.receiveText())
-                  DatabaseFactory.connect()
-                  transaction {
-                      SchemaUtils.createMissingTablesAndColumns(User)
-                  }
-                  var check = true
-                  transaction {
-                      val selectedUser = User.select {
-                          User.email eq user.email
-                      }.firstOrNull()
-                      if (selectedUser != null) {
-                          check = false
-                      }
-                  }
-                  if (!check) {
-                      call.response.status(HttpStatusCode(403, "Forbidden"))
-                      call.respond(Json.encodeToString(UserResponse("Registration failed")))
-                      return@post
-                  }
-                  transaction {
-                      User.insert {
-                          it[email] = user.email
-                          it[userType] = user.userType
-                          it[password] = user.password
-                      }
-                  }
-                  call.response.status(HttpStatusCode(200, "OK"))
-                  call.respond(Json.encodeToString(UserResponse("Signed Up")))
-              }
-      
-              post("/signin") {
-                  val user = Json { isLenient = true }.decodeFromString<UserModel>(call.receiveText())
-                  DatabaseFactory.connect()
-                  var check = true
-                  transaction {
-                      val selectedUser = User.select {
-                          User.email eq user.email
-                          User.password eq user.password
-                      }.firstOrNull()
-                      if (selectedUser == null) {
-                          check = false
-                      }
-                  }
-                  if (!check) {
-                      call.response.status(HttpStatusCode(403, "Forbidden"))
-                      call.respond(Json.encodeToString(UserResponse("Authorization failed")))
-                      return@post
-                  }
-                  call.response.status(HttpStatusCode(200, "OK"))
-                  call.respond(Json.encodeToString(UserResponse("Signed In")))
-              }
-          }
-      }
-    learner_created: false
   - name: src/resources/application.conf
     visible: true
     text: |-
@@ -156,63 +77,6 @@ files:
           implementation("org.postgresql:postgresql:42.3.8")
       }
     learner_created: false
-  - name: src/model/UserResponse.kt
-    visible: true
-    text: |
-      package hotkitchen.model
-      
-      import kotlinx.serialization.Serializable
-      
-      @Serializable
-      data class UserResponse(val status: String)
-    learner_created: false
-  - name: src/database/DatabaseFactory.kt
-    visible: true
-    text: |-
-      package hotkitchen.database
-      
-      import database.User
-      import org.jetbrains.exposed.sql.Database
-      import org.jetbrains.exposed.sql.SchemaUtils
-      import org.jetbrains.exposed.sql.transactions.transaction
-      
-      object DatabaseFactory {
-          private val driverClassName = "org.h2.Driver"
-          private val jdbcURL = "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false"
-      
-          fun connect(): Database {
-              return Database.connect(jdbcURL, driverClassName)
-          }
-      }
-    learner_created: false
-  - name: src/model/UserAuthentication.kt
-    visible: true
-    text: |
-      package hotkitchen.model
-      
-      import kotlinx.serialization.Serializable
-      
-      @Serializable
-      data class UserModel(
-          val email: String,
-          val userType: String = "",
-          val password: String
-      )
-    learner_created: false
-  - name: src/database/User.kt
-    visible: true
-    text: |-
-      package database
-      
-      import org.jetbrains.exposed.dao.id.IntIdTable
-      import org.jetbrains.exposed.sql.Column
-      
-      object User : IntIdTable() {
-          val email: Column<String> = varchar("name", 50)
-          val userType: Column<String> = varchar("userType", 50)
-          val password: Column<String> = varchar("password", 50)
-      }
-    learner_created: false
   - name: test/testdata/Credentials.kt
     visible: false
     text: |
@@ -223,7 +87,7 @@ files:
       @Serializable
       data class Credentials(var email: String, var userType: String, var password: String)
     learner_created: false
-  - name: test/testdata/MealModels.kt
+  - name: test/testdata/Meal.kt
     visible: false
     text: |-
       package testdata
@@ -277,325 +141,971 @@ files:
           val name: String, val userType: String, val phone: String, val email: String, val address: String
       )
     learner_created: false
-  - name: test/HotKitchenTest.kt
-    visible: false
+  - name: src/features/order/Order.kt
+    visible: true
+    text: |
+      package hotkitchen.features.order
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class Order(
+          val id: Int,
+          val userEmail: String,
+          val mealIds: List<Int>,
+          val price: Float,
+          val userAddress: String,
+          val status: String = "IN PROGRESS"
+      )
+    learner_created: true
+  - name: src/models/Response.kt
+    visible: true
+    text: |
+      package hotkitchen.models
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class Response(
+          val status: String = "",
+          val token: String = ""
+      )
+    learner_created: true
+  - name: src/database/DatabaseConnection.kt
+    visible: true
     text: |-
-      import com.typesafe.config.ConfigFactory
-      import io.ktor.client.request.*
-      import io.ktor.client.statement.*
-      import io.ktor.server.config.*
+      package hotkitchen.database
+      
+      import hotkitchen.database.entities.UserAuthenticationEntity
+      import io.ktor.server.application.*
+      import org.jetbrains.exposed.sql.*
+      import org.jetbrains.exposed.sql.Database
+      import org.jetbrains.exposed.sql.transactions.transaction
+      
+      object DatabaseConnection {
+          private val db = Database.connect(
+              "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false",
+              driver = "org.h2.Driver"
+          )
+      
+          fun init() {
+              transaction(db) {
+                  addLogger(StdOutSqlLogger)
+                  SchemaUtils.create(UserAuthenticationEntity)
+              }
+          }
+      
+          fun <T> execute(blk: Transaction.() -> T): T =
+              transaction(db, statement = blk)
+      }
+      
+      fun Application.setupDb() {
+          DatabaseConnection.init()
+      }
+    learner_created: true
+  - name: src/features/meal/MealRoute.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.meal
+      
+      import hotkitchen.features.authentication.AuthenticationDao
+      import hotkitchen.models.Response
       import io.ktor.http.*
-      import io.ktor.server.testing.*
-      import kotlinx.serialization.decodeFromString
+      import io.ktor.server.application.*
+      import io.ktor.server.auth.*
+      import io.ktor.server.auth.jwt.*
+      import io.ktor.server.plugins.*
+      import io.ktor.server.request.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
       import kotlinx.serialization.encodeToString
       import kotlinx.serialization.json.Json
-      import org.hyperskill.hstest.dynamic.DynamicTest
-      import org.hyperskill.hstest.stage.StageTest
-      import org.hyperskill.hstest.testcase.CheckResult
-      import testdata.*
       
-      class HotKitchenTest : StageTest<Any>() {
-      
-          private val time = System.currentTimeMillis()
-          private val jwtRegex = """^[a-zA-Z0-9]+?\.[a-zA-Z0-9]+?\..+""".toRegex()
-          private val currentCredentialsClient = Credentials("$time@client.com", "client", "password$time")
-          private var currentUserClient = User(
-              time.toString() + "name",
-              "client",
-              "+79999999999",
-              currentCredentialsClient.email,
-              time.toString() + "address"
-          )
-          private val currentCredentialsStaff = Credentials("$time@staff.com", "staff", "password$time")
-          private val currentMeals = arrayOf(
-              Meal(
-                  time.toInt(),
-                  "$time title1",
-                  (time.toInt() % 100).toFloat(),
-                  "image $time url",
-                  listOf((0..10).random(), (0..10).random(), (0..10).random())
-              ),
-              Meal(
-                  time.toInt() + 1,
-                  "$time title1",
-                  (time.toInt() % 100).toFloat(),
-                  "image $time url",
-                  listOf((0..10).random(), (0..10).random(), (0..10).random())
-              ),
-              Meal(
-                  time.toInt() + 2,
-                  "$time title1",
-                  (time.toInt() % 100).toFloat(),
-                  "image $time url",
-                  listOf((0..10).random(), (0..10).random(), (0..10).random())
-              )
-          )
-          private val accessDenied = """{"status":"Access denied"}"""
-      
-          private val price = currentMeals[0].price + currentMeals[1].price + currentMeals[2].price
-          private val mealsIds = listOf(currentMeals[0].mealId, currentMeals[1].mealId, currentMeals[2].mealId)
-          private val currentOrder =
-              Order(time.toInt(), currentCredentialsClient.email, mealsIds, price, currentUserClient.address, "COOK")
-      
-          private lateinit var signInTokenClient: String
-          private lateinit var signInTokenStaff: String
-      
-          private var incompleteSize = 0
-      
-      
-          @DynamicTest(order = 1)
-          fun getSignInJWTToken(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      var response = client.post("/signup") {
-                          setBody(Json.encodeToString(currentCredentialsClient))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+      fun Route.mealRoute(authenticationDao: AuthenticationDao, mealDao: MealDao) {
+          authenticate {
+              post("/meals") {
+                  try {
+                      val meal = call.receive<Meal>()
+                      val email = call.principal<JWTPrincipal>()!!.payload.getClaim("email").asString()
+                      if (authenticationDao.getUser(email)?.userType != "staff") {
+                          throw NotStaffException
                       }
-                      try {
-                          val principal = Json.decodeFromString<Token>(response.bodyAsText() ?: "")
-                          signInTokenClient = principal.token
-                          if (!signInTokenClient.matches(jwtRegex) || signInTokenClient.contains(currentCredentialsClient.email))
-                              result = CheckResult.wrong("Invalid JWT token")
-                          return@testApplication
-                      } catch (e: Exception) {
-                          result = CheckResult.wrong("Cannot get token form /signup request")
+                      mealDao.insertMeal(meal)
+                  } catch (e: Exception) {
+                      when (e) {
+                          is NotStaffException -> call.response.status(HttpStatusCode.Forbidden)
+                          is BadRequestException -> call.response.status(HttpStatusCode.BadRequest)
+                          else -> call.response.status(HttpStatusCode.InternalServerError)
                       }
-      
-                      response = client.post("/signin") {
-                          setBody(Json.encodeToString(currentCredentialsStaff))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                      }
-                      try {
-                          val principal = Json.decodeFromString<Token>(response.bodyAsText() ?: "")
-                          signInTokenStaff = principal.token
-                          if (!signInTokenStaff.matches(jwtRegex) || signInTokenStaff.contains(currentCredentialsStaff.email))
-                              result = CheckResult.wrong("Invalid JWT token")
-                          return@testApplication
-                      } catch (e: Exception) {
-                          result = CheckResult.wrong("Cannot get token form /signin request")
-                      }
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                      )
                   }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
               }
-              return result
-          }
-      
-          @DynamicTest(order = 2)
-          fun correctValidation(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      var response = client.get("/validate") {
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
+              post("/categories") {
+                  try {
+                      val category = call.receive<Category>()
+                      val email = call.principal<JWTPrincipal>()!!.payload.getClaim("email").asString()
+                      if (authenticationDao.getUser(email)?.userType != "staff") {
+                          throw NotStaffException
                       }
-                      if (response.status != HttpStatusCode.OK
-                          || response.bodyAsText() != "Hello, ${currentCredentialsClient.userType} ${currentCredentialsClient.email}") {
-                          result = CheckResult.wrong(
-                              "testdata.Token validation with signin token failed.\nStatus code should be \"200 OK\"\n" +
-                                      "Message should be \"Hello, ${currentCredentialsClient.userType} ${currentCredentialsClient.email}\"")
-                          return@testApplication
+                      mealDao.insertCategory(category)
+                  } catch (e: Exception) {
+                      when (e) {
+                          is NotStaffException -> call.response.status(HttpStatusCode.Forbidden)
+                          is BadRequestException -> call.response.status(HttpStatusCode.BadRequest)
+                          else -> call.response.status(HttpStatusCode.InternalServerError)
                       }
-                      response = client.get("/validate") {
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenStaff")
-                      }
-                      if (response.status != HttpStatusCode.OK
-                          || response.bodyAsText() != "Hello, ${currentCredentialsStaff.userType} ${currentCredentialsStaff.email}") {
-                          result = CheckResult.wrong(
-                              "testdata.Token validation with signin token failed.\nStatus code should be \"200 OK\"\n" +
-                                      "Message should be \"Hello, ${currentCredentialsStaff.userType} ${currentCredentialsStaff.email}\"")
-                          return@testApplication
-                      }
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                      )
                   }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
               }
-              return result
-          }
-      
-          @DynamicTest(order = 3)
-          fun createUser(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.put("/me") {
-                          setBody(Json.encodeToString(currentUserClient))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
-                      }
-                      if (response.status != HttpStatusCode.OK)
-                          result = CheckResult.wrong("Cannot add user by put method")
+              get("/meals") {
+                  try {
+                      val meals = mealDao.getMeals()
+                      call.respondText(
+                          Json.encodeToString(meals),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.OK
+                      )
+                  } catch (e: Exception) {
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.InternalServerError
+                      )
                   }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
               }
-              return result
-          }
-      
-          @DynamicTest(order = 4)
-          fun successAdditionMeal(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      lateinit var response: HttpResponse
-                      for (meal in currentMeals)
-                          response = client.post("/meals") {
-                              setBody(Json.encodeToString(meal))
-                              header(HttpHeaders.Authorization, "Bearer $signInTokenStaff")
-                              header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                          }
-                              if (response.status != HttpStatusCode.OK) {
-                                  result = CheckResult.wrong("The meal was not added. Wrong status code.")
-                                  return@testApplication
-                              }
+              get("/meals") {
+                  try {
+                      val categories = mealDao.getCategories()
+                      call.respondText(
+                          Json.encodeToString(categories),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.OK
+                      )
+                  } catch (e: Exception) {
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.InternalServerError
+                      )
                   }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
               }
-              return result
-          }
-      
-          @DynamicTest(order = 5)
-          fun invalidOrderCreation(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.post("/order") {
-                          setBody(Json.encodeToString(listOf(1, 2, (-9999999..-9999).random())))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
+              get("/meals?id={id}") {
+                  try {
+                      val id = call.receiveParameters()["id"]?.toIntOrNull()
+                      id?.let {
+                          val meal = mealDao.getMeal(id) ?: throw NotFoundException("Meal $id not found")
+                          call.respondText(
+                              Json.encodeToString(meal),
+                              contentType = ContentType.Application.Json,
+                              HttpStatusCode.OK
+                          )
+                      } ?: throw BadRequestException("Invalid id parameter")
+                  } catch (e: Exception) {
+                      when (e) {
+                          is BadRequestException -> call.response.status(HttpStatusCode.BadRequest)
+                          is NotFoundException -> call.response.status(HttpStatusCode.NotFound)
+                          else -> call.response.status(HttpStatusCode.InternalServerError)
                       }
-                      if (response.status != HttpStatusCode.BadRequest)
-                          result = CheckResult.wrong("Created an order with the wrong meal id. Wrong status code.")
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                      )
                   }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
               }
-              return result
-          }
-      
-          @DynamicTest(order = 6)
-          fun validOrderCreation(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.post( "/order") {
-                          setBody(Json.encodeToString(mealsIds))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
+              get("/category?id={id}") {
+                  try {
+                      val id = call.receiveParameters()["id"]?.toIntOrNull()
+                      id?.let {
+                          val category = mealDao.getCategory(id) ?: throw NotFoundException("Category $id not found")
+                          call.respondText(
+                              Json.encodeToString(category),
+                              contentType = ContentType.Application.Json,
+                              HttpStatusCode.OK
+                          )
+                      } ?: throw BadRequestException("Invalid id parameter")
+                  } catch (e: Exception) {
+                      when (e) {
+                          is BadRequestException -> call.response.status(HttpStatusCode.BadRequest)
+                          else -> call.response.status(HttpStatusCode.InternalServerError)
                       }
-                      if (response.status != HttpStatusCode.OK) {
-                          result = CheckResult.wrong("Unable to create order. Wrong status code.")
-                          return@testApplication
-                      }
-                      val order = Json.decodeFromString<Order>(response.bodyAsText() ?: "")
-                      if (order.userEmail != currentOrder.userEmail || order.price != currentOrder.price || order.address != currentOrder.address || order.status != currentOrder.status) {
-                          result = CheckResult.wrong("Wrong order.")
-                          return@testApplication
-                      }
-                      else currentOrder.orderId = order.orderId
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                      )
                   }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
               }
-              return result
           }
-      
-          @DynamicTest(order = 7)
-          fun invalidMarkAsReady(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.post("/order/${currentOrder.orderId}/markReady") {
-                          setBody(Json.encodeToString(mealsIds))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
-                      }
-                      if (response.status != HttpStatusCode.Forbidden || response.bodyAsText() != accessDenied)
-                          result = CheckResult.wrong("Only staff can mark order as COMPLETE. Wrong status code.")
-                  }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
-              }
-              return result
-          }
-      
-          @DynamicTest(order = 8)
-          fun validMarkAsReady(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.post("/order/${currentOrder.orderId}/markReady") {
-                          setBody(Json.encodeToString(mealsIds))
-                          header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenStaff")
-                      }
-                      if (response.status != HttpStatusCode.OK)
-                          result = CheckResult.wrong("Unable to mark order as COMPLETE. Wrong status code.")
-                  }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
-              }
-              return result
-          }
-      
-          @DynamicTest(order = 9)
-          fun getOrders(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.get("/orderHistory") {
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
-                      }
-                      val orders: List<Order> = Json.decodeFromString(response.bodyAsText() ?: "")
-                      var flag = true
-                      for (order in orders) {
-                          if (order.status == "COOK") incompleteSize++
-                          if (order.orderId == currentOrder.orderId) flag = false
-                      }
-                      if (flag) {
-                          result = CheckResult.wrong("Wrong orders list. The newly added order is missing.")
-                          return@testApplication
-                      }
-                      if (response.status != HttpStatusCode.OK)
-                          result = CheckResult.wrong("Wrong status code in /orderHistory")
-                  }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
-              }
-              return result
-          }
-      
-          @DynamicTest(order = 10)
-          fun getIncompleteOrders(): CheckResult {
-              var result = CheckResult.correct()
-              try {
-                  testApplication {
-                      val response = client.get("/orderIncomplete") {
-                          header(HttpHeaders.Authorization, "Bearer $signInTokenClient")
-                      }
-                      val orders: List<Order> = Json.decodeFromString(response.bodyAsText() ?: "")
-                      for (order in orders)
-                          if (order.status != "COOK") {
-                              result = CheckResult.wrong("One of the orders is COMPLETE.")
-                              return@testApplication
-                          }
-                      if (orders.size != incompleteSize) {
-                          result = CheckResult.wrong("Invalid size of Incomplete orders.")
-                          return@testApplication
-                      }
-                      if (response.status != HttpStatusCode.OK)
-                          result = CheckResult.wrong("Wrong status code in /orderHistory")
-                  }
-              } catch (e: Exception) {
-                  result = CheckResult.wrong(e.message)
-              }
-              return result
-          }
-      
       }
-    learner_created: false
+      
+      object NotStaffException : Exception("Access denied") {
+          private fun readResolve(): Any = NotStaffException
+      }
+    learner_created: true
+  - name: src/features/user/UserInfo.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.user
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class UserInfo(
+          val name: String = "",
+          val userType: String = "",
+          val phone: String = "",
+          val email: String,
+          val address: String = ""
+      )
+    learner_created: true
+  - name: src/database/entities/MealEntity.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.entities
+      
+      import kotlinx.serialization.Serializable
+      import org.jetbrains.exposed.sql.Column
+      import org.jetbrains.exposed.sql.Table
+      
+      object MealEntity : Table() {
+          val id = integer("id").uniqueIndex()
+          val title = varchar("title", 50)
+          val price = integer("price")
+          val imageUrl = varchar("imageUrl", 50)
+          val categoryIds = varchar("categoryIds", 50)
+      }
+    learner_created: true
+  - name: src/features/order/OrderRoute.kt
+    visible: true
+    text: |
+      package hotkitchen.features.order
+      
+      import hotkitchen.features.authentication.AuthenticationDao
+      import hotkitchen.features.meal.Meal
+      import hotkitchen.features.meal.NotStaffException
+      import hotkitchen.models.Response
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.auth.*
+      import io.ktor.server.auth.jwt.*
+      import io.ktor.server.plugins.*
+      import io.ktor.server.request.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      import kotlinx.serialization.encodeToString
+      import kotlinx.serialization.json.Json
+      
+      fun Route.orderRoute(authenticationDao: AuthenticationDao, orderDao: OrderDao) {
+          authenticate {
+              post("/order") {
+                  try {
+                      val order = call.receive<Order>()
+                      orderDao.insertOrder(order)
+                      call.respondText(
+                          Json.encodeToString(order),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.OK
+                      )
+                  } catch (e: Exception) {
+                      when (e) {
+                          is BadRequestException -> call.response.status(HttpStatusCode.BadRequest)
+                          else -> call.response.status(HttpStatusCode.InternalServerError)
+                      }
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                      )
+                  }
+              }
+              post("/order/{orderId}/markReady") {
+                  try {
+                      val email = call.principal<JWTPrincipal>()!!.payload.getClaim("email").asString()
+                      if (authenticationDao.getUser(email)?.userType != "staff") {
+                          throw NotStaffException
+                      }
+                      orderDao.markReady(
+                          call.receiveParameters()["id"]?.toIntOrNull() ?: throw BadRequestException("Invalid order id")
+                      )
+                  } catch (e: Exception) {
+                      when (e) {
+                          is BadRequestException -> call.response.status(HttpStatusCode.BadRequest)
+                          is NotFoundException -> call.response.status(HttpStatusCode.NotFound)
+                          is NotStaffException -> call.response.status(HttpStatusCode.Forbidden)
+                          else -> call.response.status(HttpStatusCode.InternalServerError)
+                      }
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                      )
+                  }
+              }
+          }
+      }
+    learner_created: true
+  - name: src/database/daos/DefaultMealDao.kt
+    visible: true
+    text: |
+      package hotkitchen.database.daos
+      
+      import hotkitchen.database.DatabaseConnection
+      import hotkitchen.database.entities.CategoryEntity
+      import hotkitchen.database.entities.MealEntity
+      import hotkitchen.database.entities.UserAuthenticationEntity
+      import hotkitchen.features.meal.Category
+      import hotkitchen.features.meal.Meal
+      import hotkitchen.features.meal.MealDao
+      import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+      import org.jetbrains.exposed.sql.insert
+      import org.jetbrains.exposed.sql.select
+      import org.jetbrains.exposed.sql.selectAll
+      
+      class DefaultMealDao : MealDao {
+      
+          override fun insertMeal(meal: Meal) {
+              DatabaseConnection.execute {
+                  if (MealEntity.select {
+                          MealEntity.id eq meal.id
+                      }.singleOrNull() != null) {
+                      throw MealAlreadyExists
+                  }
+                  MealEntity.insert {
+                      it[id] = meal.id
+                      it[title] = meal.title
+                      it[price] = meal.price
+                      it[imageUrl] = meal.imageUrl
+                      it[categoryIds] = meal.categoryIds.joinToString(", ")
+                  }
+              }
+          }
+      
+          override fun getMeals(): List<Meal> {
+              var list = emptyList<Meal>()
+              DatabaseConnection.execute {
+                  list = MealEntity.selectAll().map {
+                      Meal(
+                          id = it[MealEntity.id],
+                          title = it[MealEntity.title],
+                          price = it[MealEntity.price],
+                          imageUrl = it[MealEntity.imageUrl],
+                          categoryIds = it[MealEntity.categoryIds].split(", ").map { category -> category.toInt() },
+                      )
+                  }
+              }
+              return list
+          }
+      
+          override fun insertCategory(category: Category) {
+              DatabaseConnection.execute {
+                  if (CategoryEntity.select {
+                          CategoryEntity.id eq category.id
+                      }.singleOrNull() != null) {
+                      throw CategoryAlreadyExists
+                  }
+                  CategoryEntity.insert {
+                      it[id] = category.id
+                      it[description] = category.description
+                      it[title] = category.title
+                  }
+              }
+          }
+      
+          override fun getCategories(): List<Category> {
+              var list = emptyList<Category>()
+              DatabaseConnection.execute {
+                  list = CategoryEntity.selectAll().map {
+                      Category(
+                          id = it[MealEntity.id],
+                          title = it[MealEntity.title],
+                          description = it[CategoryEntity.description]
+                      )
+                  }
+              }
+              return list
+          }
+      
+          override fun getMeal(id: Int): Meal? {
+              return DatabaseConnection.execute {
+                  val selected = MealEntity.select { MealEntity.id eq id }.singleOrNull() ?: return@execute null
+                  Meal(
+                      id = selected[MealEntity.id],
+                      title = selected[MealEntity.title],
+                      price = selected[MealEntity.price],
+                      imageUrl = selected[MealEntity.imageUrl],
+                      categoryIds = selected[MealEntity.categoryIds].split(", ").map { category -> category.toInt() },
+                  )
+              }
+          }
+      
+          override fun getCategory(id: Int): Category? {
+              return DatabaseConnection.execute {
+                  val selected = CategoryEntity.select { MealEntity.id eq id }.singleOrNull() ?: return@execute null
+                  Category(
+                      id = selected[MealEntity.id],
+                      title = selected[MealEntity.title],
+                      description = selected[CategoryEntity.description]
+                  )
+              }
+          }
+      }
+      
+      object MealAlreadyExists : Exception("Meal already exists") {
+          private fun readResolve(): Any = UserAlreadyExists
+      }
+      
+      object CategoryAlreadyExists : Exception("Category already exists") {
+          private fun readResolve(): Any = UserAlreadyExists
+      }
+    learner_created: true
+  - name: src/database/daos/DefaultUserDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.daos
+      
+      import hotkitchen.features.authentication.UserAuthentication
+      import hotkitchen.database.DatabaseConnection
+      import hotkitchen.database.entities.UserAuthenticationEntity
+      import hotkitchen.database.entities.UserInfoEntity
+      import hotkitchen.features.user.UserDao
+      import hotkitchen.features.user.UserInfo
+      import org.h2.engine.User
+      import org.jetbrains.exposed.sql.Except
+      import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+      import org.jetbrains.exposed.sql.deleteWhere
+      import org.jetbrains.exposed.sql.select
+      import org.jetbrains.exposed.sql.update
+      
+      class DefaultUserDao : UserDao {
+      
+          override fun getUser(email: String): UserInfo? {
+              var user: UserInfo? = null
+              DatabaseConnection.execute {
+                  user = UserInfoEntity.select {
+                      UserInfoEntity.email eq email
+                  }.singleOrNull()?.let {
+                      UserInfo(
+                          name = it[UserInfoEntity.name],
+                          userType = it[UserInfoEntity.userType],
+                          phone = it[UserInfoEntity.phone],
+                          email = it[UserInfoEntity.email],
+                          address = it[UserInfoEntity.address],
+                      )
+                  }
+              }
+              return user
+          }
+      
+          override fun updateUser(userInfo: UserInfo) {
+              DatabaseConnection.execute {
+                  UserInfoEntity.update({ UserInfoEntity.email eq userInfo.email }) {
+                      it[name] = userInfo.name
+                      it[userType] = userInfo.userType
+                      it[phone] = userInfo.phone
+                      it[address] = userInfo.address
+                  }
+              }
+          }
+      
+          override fun deleteUser(email: String) {
+              DatabaseConnection.execute {
+                  if (UserInfoEntity.deleteWhere { UserInfoEntity.email eq email } == 0)
+                      throw UserNotFoundException
+              }
+          }
+      }
+      
+      object UserAlreadyExists : Exception("User already exists") {
+          private fun readResolve(): Any = UserAlreadyExists
+      }
+      
+      object UserNotFoundException : Exception("User not found") {
+          private fun readResolve(): Any = UserNotFoundException
+      }
+    learner_created: true
+  - name: src/database/entities/UserAuthenticationEntity.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.entities
+      
+      import org.jetbrains.exposed.dao.id.IntIdTable
+      import org.jetbrains.exposed.sql.Column
+      
+      object UserAuthenticationEntity : IntIdTable() {
+          val email: Column<String> = varchar("email", 50)
+          val userType: Column<String> = varchar("userType", 50)
+          val token: Column<String> = varchar("password", 500)
+      }
+    learner_created: true
+  - name: src/features/user/UserDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.user
+      
+      interface UserDao {
+      
+          fun getUser(email: String): UserInfo?
+      
+          fun updateUser(userInfo: UserInfo)
+      
+          fun deleteUser(email: String)
+      }
+    learner_created: true
+  - name: src/database/entities/OrderEntity.kt
+    visible: true
+    text: |+
+      package hotkitchen.database.entities
+      
+      import org.jetbrains.exposed.sql.Table
+      
+      object OrderEntity : Table() {
+          val id = integer("id")
+          val userEmail = varchar("userEmail", 50)
+          val mealIds = varchar("mealIds", 50)
+          val price = float("price")
+          val userAddress = varchar("userAddress", 50)
+          val status = varchar("status", 50)
+      }
+    
+    learner_created: true
+  - name: src/features/meal/MealDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.meal
+      
+      interface MealDao {
+      
+          fun insertMeal(meal: Meal)
+      
+          fun getMeals(): List<Meal>
+      
+          fun insertCategory(category: Category)
+      
+          fun getCategories(): List<Category>
+      
+          fun getMeal(id: Int): Meal?
+      
+          fun getCategory(id: Int): Category?
+      }
+    learner_created: true
+  - name: src/features/user/UserRoute.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.user
+      
+      import hotkitchen.models.Response
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.auth.*
+      import io.ktor.server.auth.jwt.*
+      import io.ktor.server.request.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      import kotlinx.serialization.encodeToString
+      import kotlinx.serialization.json.Json
+      
+      fun Route.userRoute(userDao: UserDao) {
+          authenticate {
+              get("/me") {
+                  try {
+                      val email = call.principal<JWTPrincipal>()!!.payload.getClaim("email").asString()
+                      val user = userDao.getUser(email)
+                      call.respondText(
+                          Json.encodeToString(user),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.OK
+                      )
+                  } catch (e: Exception) {
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.BadRequest
+                      )
+                  }
+              }
+              put("/me") {
+                  try {
+                      val email = call.principal<JWTPrincipal>()!!.payload.getClaim("email").asString()
+                      val user = call.receive<UserInfo>()
+                      validateUserInfoUpdating(email, user)
+                      userDao.updateUser(user)
+                      call.respondText(
+                          Json.encodeToString(user),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.OK
+                      )
+      
+                  } catch (e: Exception) {
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.BadRequest
+                      )
+                  }
+              }
+              delete("/me") {
+                  try {
+                      val email = call.principal<JWTPrincipal>()!!.payload.getClaim("email").asString()
+                      userDao.deleteUser(email)
+                      call.respondText(
+                          Json.encodeToString(Response("User $email deleted successfully")),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.OK
+                      )
+                  } catch (e: Exception) {
+                      call.respondText(
+                          Json.encodeToString(Response(e.message ?: "")),
+                          contentType = ContentType.Application.Json,
+                          HttpStatusCode.NotFound
+                      )
+                  }
+              }
+          }
+      }
+      
+      private fun validateUserInfoUpdating(email: String, userInfo: UserInfo) {
+          if (email != userInfo.email) {
+              throw ChangeEmailException
+          }
+      }
+      
+      private object ChangeEmailException : Exception("You cannot change the email") {
+          private fun readResolve(): Any = ChangeEmailException
+      }
+    learner_created: true
+  - name: src/features/authentication/AuthenticationDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.authentication
+      
+      interface AuthenticationDao {
+      
+          fun signIn(user: UserAuthentication): String
+      
+          fun signUp(user: UserAuthentication)
+      
+          fun getUser(email: String): UserAuthentication?
+      }
+    learner_created: true
+  - name: src/features/validate/ValidateRoute.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.validate
+      
+      import hotkitchen.features.authentication.AuthenticationDao
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.auth.*
+      import io.ktor.server.auth.jwt.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      
+      fun Route.validateRoute(authenticationDao: AuthenticationDao) {
+      
+          authenticate {
+              get("/features/validate") {
+                  try {
+                      val principal = call.principal<JWTPrincipal>()
+                      val email = principal!!.payload.getClaim("email").asString()
+                      val user = authenticationDao.getUser(email)
+                      call.respond(HttpStatusCode.OK, "Hello, ${user?.userType} $email")
+                  } catch (e: Exception) {
+                      call.respond(HttpStatusCode.InternalServerError, e.message!!)
+                  }
+              }
+          }
+      }
+    learner_created: true
+  - name: src/features/meal/MealModels.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.meal
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class Meal(
+          val id: Int,
+          val title: String,
+          val price: Int,
+          val imageUrl: String,
+          val categoryIds: List<Int>
+      )
+      
+      @Serializable
+      data class Category(
+          val id: Int,
+          val title: String,
+          val description: String
+      )
+    learner_created: true
+  - name: src/features/authentication/UserAuthentication.kt
+    visible: true
+    text: |
+      package hotkitchen.features.authentication
+      
+      import kotlinx.serialization.Serializable
+      
+      @Serializable
+      data class UserAuthentication(
+          val email: String,
+          val password: String,
+          val userType: String = ""
+      )
+    learner_created: true
+  - name: src/database/entities/UserInfoEntity.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.entities
+      
+      import org.h2.table.Table
+      import org.jetbrains.exposed.dao.id.IntIdTable
+      
+      object UserInfoEntity : IntIdTable() {
+          val name = varchar("name", 50)
+          val userType = varchar("userType", 50)
+          val phone = varchar("phone", 50)
+          val email = varchar("email", 50)
+          val address = varchar("address", 50)
+      }
+    learner_created: true
+  - name: src/features/authentication/AuthenticationRoute.kt
+    visible: true
+    text: |
+      package hotkitchen.features.authentication
+      
+      import com.auth0.jwt.JWT
+      import com.auth0.jwt.algorithms.Algorithm
+      import hotkitchen.models.Response
+      import io.ktor.http.*
+      import io.ktor.server.application.*
+      import io.ktor.server.request.*
+      import io.ktor.server.response.*
+      import io.ktor.server.routing.*
+      import kotlinx.serialization.encodeToString
+      import kotlinx.serialization.json.Json
+      import org.apache.commons.validator.routines.EmailValidator
+      import java.util.*
+      
+      fun Route.authenticationRoute(authenticationDao: AuthenticationDao) {
+          post("/signin") {
+              val user = call.receive<UserAuthentication>()
+              try {
+                  val tokenAuthentication = generateToken(user.email, user.password, call)
+                  val token = authenticationDao.signIn(user.copy(password = tokenAuthentication))
+                  call.respondText(
+                      Json.encodeToString(Response(token = token)),
+                      ContentType.Application.Json,
+                      HttpStatusCode.OK
+                  )
+              } catch (e: Exception) {
+                  call.respondText(
+                      Json.encodeToString(Response(e.message!!)),
+                      ContentType.Application.Json,
+                      HttpStatusCode.Forbidden
+                  )
+              }
+          }
+          post("/signup") {
+              val user = call.receive<UserAuthentication>()
+              try {
+                  validateSignUpInfo(user)
+                  val token = generateToken(user.email, user.password, call)
+                  authenticationDao.signUp(user.copy(password = token))
+                  call.respondText(
+                      Json.encodeToString(Response(token = token)),
+                      ContentType.Application.Json,
+                      HttpStatusCode.OK
+                  )
+              } catch (e: Exception) {
+                  call.respondText(
+                      Json.encodeToString(Response(e.message ?: "")),
+                      contentType = ContentType.Application.Json,
+                      HttpStatusCode.Forbidden
+                  )
+              }
+          }
+      }
+      
+      private object InvalidEmail : Exception("Invalid email") {
+          private fun readResolve(): Any = InvalidEmail
+      }
+      
+      private object InvalidPassword : Exception("Invalid password") {
+          private fun readResolve(): Any = InvalidPassword
+      }
+      
+      private fun String.isValidEmail(): Boolean {
+          return EmailValidator.getInstance().isValid(this) && this.split("@")[0].all { it.isLetterOrDigit() }
+      }
+      
+      private fun String.isValidPassword(): Boolean {
+          return this.length >= 6 && this.any { it.isLetter() } && this.any { it.isDigit() }
+      }
+      
+      private fun generateToken(email: String, password: String, call: ApplicationCall): String {
+          val config = call.application.environment.config
+          val secret = config.property("jwt.secret").getString()
+      
+          return JWT.create()
+              .withClaim("email", email)
+              .withClaim("password", password)
+              .sign(Algorithm.HMAC256(secret))
+      }
+      
+      private fun validateSignUpInfo(user: UserAuthentication) {
+          if (!user.email.isValidEmail()) {
+              throw InvalidEmail
+          }
+          if (!user.password.isValidPassword()) {
+              throw InvalidPassword
+          }
+      }
+    learner_created: true
+  - name: src/database/entities/CategoryEntity.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.entities
+      
+      import org.jetbrains.exposed.sql.Table
+      
+      object CategoryEntity : Table() {
+          val id = integer("id")
+          val title = varchar("title", 50)
+          val description = varchar("description", 500)
+      }
+    learner_created: true
+  - name: src/features/order/OrderDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.features.order
+      
+      interface OrderDao {
+      
+          fun insertOrder(order: Order)
+      
+          fun markReady(id: Int)
+      }
+    learner_created: true
+  - name: src/database/daos/DefaultOrderDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.daos
+      
+      import hotkitchen.database.DatabaseConnection
+      import hotkitchen.database.entities.MealEntity
+      import hotkitchen.database.entities.OrderEntity
+      import hotkitchen.features.order.Order
+      import hotkitchen.features.order.OrderDao
+      import io.ktor.server.plugins.*
+      import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+      import org.jetbrains.exposed.sql.insert
+      import org.jetbrains.exposed.sql.select
+      import org.jetbrains.exposed.sql.update
+      
+      class DefaultOrderDao : OrderDao {
+      
+          override fun insertOrder(order: Order) {
+              DatabaseConnection.execute {
+                  if (OrderEntity.select { OrderEntity.id eq order.id }.singleOrNull() != null) {
+                      throw OrderAlreadyExists
+                  }
+                  OrderEntity.insert {
+                      it[id] = order.id
+                      it[userAddress] = order.userAddress
+                      it[userEmail] = order.userEmail
+                      it[price] = order.price
+                      it[status] = order.status
+                      it[mealIds] = order.mealIds.joinToString(", ")
+                  }
+              }
+          }
+      
+          override fun markReady(id: Int) {
+              DatabaseConnection.execute {
+                  if (OrderEntity.select { OrderEntity.id eq id }.singleOrNull() == null) {
+                      throw NotFoundException()
+                  }
+                  OrderEntity.update({ OrderEntity.id eq id }) {
+                      it[status] = "COMPLETE"
+                  }
+              }
+          }
+      }
+      
+      object OrderAlreadyExists : BadRequestException("This order already exists") {
+          private fun readResolve(): Any = OrderAlreadyExists
+      }
+    learner_created: true
+  - name: src/database/daos/DefaultAuthenticationDao.kt
+    visible: true
+    text: |-
+      package hotkitchen.database.daos
+      
+      import hotkitchen.features.authentication.AuthenticationDao
+      import hotkitchen.features.authentication.UserAuthentication
+      import hotkitchen.database.DatabaseConnection
+      import hotkitchen.database.entities.UserAuthenticationEntity
+      import org.jetbrains.exposed.sql.and
+      import org.jetbrains.exposed.sql.insert
+      import org.jetbrains.exposed.sql.select
+      
+      class DefaultAuthenticationDao : AuthenticationDao {
+          override fun signIn(user: UserAuthentication): String {
+              return DatabaseConnection.execute {
+                  if (UserAuthenticationEntity.select {
+                          UserAuthenticationEntity.email eq user.email and
+                          (UserAuthenticationEntity.token eq user.password)
+                      }.firstOrNull() == null) {
+                      throw InvalidEmailOrPassword
+                  }
+                  user.password
+              }
+          }
+      
+          override fun signUp(user: UserAuthentication) {
+              DatabaseConnection.execute {
+                  if (UserAuthenticationEntity.select {
+                          UserAuthenticationEntity.email eq user.email
+                      }.firstOrNull() != null) {
+                      throw UserAlreadyExists
+                  }
+                  UserAuthenticationEntity.insert {
+                      it[email] = user.email
+                      it[userType] = user.userType
+                      it[token] = user.password
+                  }
+              }
+          }
+      
+          override fun getUser(email: String): UserAuthentication? {
+              var user: UserAuthentication? = null
+              DatabaseConnection.execute {
+                  user = UserAuthenticationEntity.select {
+                      UserAuthenticationEntity.email eq email
+                  }.singleOrNull()?.let {
+                      UserAuthentication(
+                          email = it[UserAuthenticationEntity.email],
+                          password = it[UserAuthenticationEntity.token],
+                          userType = it[UserAuthenticationEntity.userType],
+                      )
+                  }
+              }
+              return user
+          }
+      }
+      
+      object InvalidEmailOrPassword : Exception("Invalid email or password") {
+          private fun readResolve(): Any = InvalidEmailOrPassword
+      }
+    learner_created: true
 feedback_link: https://hyperskill.org/learn/step/22607#comment
-status: Unchecked
+status: Solved
+feedback:
+  message: Well done! You've finished the project. Select a new project on <a href="https://hyperskill.org/projects">Hyperskill</a>
+    to continue learning.
+  time: "Sun, 05 Nov 2023 07:49:49 UTC"
 record: -1
