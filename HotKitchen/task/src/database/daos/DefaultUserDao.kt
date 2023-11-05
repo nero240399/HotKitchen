@@ -2,9 +2,8 @@ package hotkitchen.database.daos
 
 import hotkitchen.database.DatabaseConnection
 import hotkitchen.database.entities.UserEntity
-import hotkitchen.model.User
+import hotkitchen.models.User
 import hotkitchen.user.UserDao
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 
 class DefaultUserDao : UserDao {

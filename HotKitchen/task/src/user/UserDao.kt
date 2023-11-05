@@ -1,6 +1,6 @@
 package hotkitchen.user
 
-import hotkitchen.model.User
+import hotkitchen.models.User
 
 interface UserDao {
 

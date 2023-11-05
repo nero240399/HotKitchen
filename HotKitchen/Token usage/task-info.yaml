@@ -534,7 +534,10 @@ files:
       @Serializable
       data class Response(val status: String)
     learner_created: true
-  - name: src/models/UserModel.kt
+  - name: src/model/Response.kt
+    visible: true
+    learner_created: true
+  - name: src/models/User.kt
     visible: true
     text: |
       package hotkitchen.user
@@ -552,5 +555,5 @@ feedback_link: https://hyperskill.org/learn/step/22604#comment
 status: Solved
 feedback:
   message: Congratulations!
-  time: "Sun, 05 Nov 2023 00:41:20 UTC"
+  time: "Sun, 05 Nov 2023 01:24:23 UTC"
 record: 2

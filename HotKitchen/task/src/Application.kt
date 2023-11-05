@@ -6,6 +6,7 @@ import hotkitchen.authentication.authenticationRoute
 import hotkitchen.database.daos.DefaultAuthenticationDao
 import hotkitchen.database.daos.DefaultUserDao
 import hotkitchen.database.setupDb
+import hotkitchen.user.UserDao
 import hotkitchen.validate.validateRoute
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -18,12 +19,11 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 
-const val Secret = "nero240399"
-
 fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() {
     val userDao = DefaultUserDao()
+    this.authenticationModule(userDao)
     setupDb()
     install(ContentNegotiation) {
         json(Json {
@@ -37,12 +37,13 @@ fun Application.module() {
     }
 }
 
-fun Application.authenticationModule() {
+fun Application.authenticationModule(userDao: UserDao) {
+    val secret = environment.config.property("jwt.secret").getString()
     install(Authentication) {
         jwt {
             verifier(
                 JWT
-                    .require(Algorithm.HMAC256(Secret))
+                    .require(Algorithm.HMAC256(secret))
                     .build()
             )
             validate { credential ->
@@ -56,7 +57,7 @@ fun Application.authenticationModule() {
             challenge { _, _ ->
                 call.respond(
                     HttpStatusCode.Unauthorized,
-                    "All authorization must be done using a Bearer token in headers.\n"
+                    "Token is not valid or has expired"
                 )
             }
         }

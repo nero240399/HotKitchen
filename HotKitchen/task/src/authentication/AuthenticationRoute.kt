@@ -2,10 +2,8 @@ package hotkitchen.authentication
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import hotkitchen.Secret
-import hotkitchen.model.Response
-import hotkitchen.model.User
-import hotkitchen.user.*
+import hotkitchen.models.Response
+import hotkitchen.models.User
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -14,15 +12,13 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.apache.commons.validator.routines.EmailValidator
+import java.util.*
 
 fun Route.authenticationRoute(authenticationDao: AuthenticationDao) {
     post("/signin") {
         val userAuthentication = call.receive<UserAuthentication>()
         try {
-            val tokenAuthentication = JWT.create()
-                .withClaim("email", userAuthentication.email)
-                .withClaim("password", userAuthentication.password)
-                .sign(Algorithm.HMAC256(Secret))
+            val tokenAuthentication = generateToken(userAuthentication.email, userAuthentication.password, call)
             val token = authenticationDao.signIn(userAuthentication.copy(password = tokenAuthentication))
             call.response.status(HttpStatusCode.OK)
             call.respondText { Json.encodeToString(Response(token = token)) }
@@ -37,16 +33,8 @@ fun Route.authenticationRoute(authenticationDao: AuthenticationDao) {
     post("/signup") {
         val user = call.receive<User>()
         try {
-            if (!user.email.isValidEmail()) {
-                throw InvalidEmail
-            }
-            if (!user.password.isValidPassword()) {
-                throw InvalidPassword
-            }
-            val token = JWT.create()
-                .withClaim("email", user.email)
-                .withClaim("password", user.password)
-                .sign(Algorithm.HMAC256(Secret))
+            validateSignUpInfo(user)
+            val token = generateToken(user.email, user.password, call)
             authenticationDao.signUp(user.copy(password = token))
             call.response.status(HttpStatusCode.OK)
             call.respondText { Json.encodeToString(Response(token = token)) }
@@ -74,4 +62,24 @@ private fun String.isValidEmail(): Boolean {
 
 private fun String.isValidPassword(): Boolean {
     return this.length >= 6 && this.any { it.isLetter() } && this.any { it.isDigit() }
+}
+
+private fun generateToken(email: String, password: String, call: ApplicationCall): String {
+    val config = call.application.environment.config
+    val secret = config.property("jwt.secret").getString()
+
+    return JWT.create()
+        .withClaim("email", email)
+        .withClaim("password", password)
+        .withExpiresAt(Date(System.currentTimeMillis() + 60000))
+        .sign(Algorithm.HMAC256(secret))
+}
+
+private fun validateSignUpInfo(user: User) {
+    if (!user.email.isValidEmail()) {
+        throw InvalidEmail
+    }
+    if (!user.password.isValidPassword()) {
+        throw InvalidPassword
+    }
 }

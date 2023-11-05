@@ -4,7 +4,7 @@ import hotkitchen.authentication.AuthenticationDao
 import hotkitchen.authentication.UserAuthentication
 import hotkitchen.database.DatabaseConnection
 import hotkitchen.database.entities.UserEntity
-import hotkitchen.model.User
+import hotkitchen.models.User
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 
