@@ -46,7 +46,8 @@ fun Application.authenticationModule() {
                     .build()
             )
             validate { credential ->
-                if (credential.payload.getClaim("email").asString() != "") {
+                val email = credential.payload.getClaim("email").asString()
+                if (userDao.getUser(email) != null) {
                     JWTPrincipal(credential.payload)
                 } else {
                     null
