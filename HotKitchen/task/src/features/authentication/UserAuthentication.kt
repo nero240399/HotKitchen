@@ -1,4 +1,4 @@
-package hotkitchen.authentication
+package hotkitchen.features.authentication
 
 import kotlinx.serialization.Serializable
 

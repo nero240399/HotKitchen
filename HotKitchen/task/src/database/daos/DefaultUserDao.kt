@@ -1,11 +1,11 @@
 package hotkitchen.database.daos
 
-import hotkitchen.authentication.UserAuthentication
+import hotkitchen.features.authentication.UserAuthentication
 import hotkitchen.database.DatabaseConnection
 import hotkitchen.database.entities.UserAuthenticationEntity
 import hotkitchen.database.entities.UserInfoEntity
-import hotkitchen.user.UserDao
-import hotkitchen.user.UserInfo
+import hotkitchen.features.user.UserDao
+import hotkitchen.features.user.UserInfo
 import org.h2.engine.User
 import org.jetbrains.exposed.sql.Except
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq

@@ -1,7 +1,6 @@
-package hotkitchen.validate
+package hotkitchen.features.validate
 
-import hotkitchen.authentication.AuthenticationDao
-import hotkitchen.user.UserDao
+import hotkitchen.features.authentication.AuthenticationDao
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -12,7 +11,7 @@ import io.ktor.server.routing.*
 fun Route.validateRoute(authenticationDao: AuthenticationDao) {
 
     authenticate {
-        get("/validate") {
+        get("/features/validate") {
             try {
                 val principal = call.principal<JWTPrincipal>()
                 val email = principal!!.payload.getClaim("email").asString()

@@ -1,4 +1,4 @@
-package hotkitchen.user
+package hotkitchen.features.user
 
 interface UserDao {
 

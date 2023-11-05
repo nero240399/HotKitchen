@@ -1,4 +1,4 @@
-package hotkitchen.user
+package hotkitchen.features.user
 
 import kotlinx.serialization.Serializable
 

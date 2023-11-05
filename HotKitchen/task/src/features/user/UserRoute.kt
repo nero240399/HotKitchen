@@ -1,4 +1,4 @@
-package hotkitchen.user
+package hotkitchen.features.user
 
 import hotkitchen.models.Response
 import io.ktor.http.*

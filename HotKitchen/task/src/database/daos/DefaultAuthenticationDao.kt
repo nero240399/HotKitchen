@@ -1,7 +1,7 @@
 package hotkitchen.database.daos
 
-import hotkitchen.authentication.AuthenticationDao
-import hotkitchen.authentication.UserAuthentication
+import hotkitchen.features.authentication.AuthenticationDao
+import hotkitchen.features.authentication.UserAuthentication
 import hotkitchen.database.DatabaseConnection
 import hotkitchen.database.entities.UserAuthenticationEntity
 import org.jetbrains.exposed.sql.insert

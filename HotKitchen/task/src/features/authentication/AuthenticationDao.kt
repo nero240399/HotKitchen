@@ -1,4 +1,4 @@
-package hotkitchen.authentication
+package hotkitchen.features.authentication
 
 interface AuthenticationDao {
 

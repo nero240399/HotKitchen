@@ -2,13 +2,13 @@ package hotkitchen
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import hotkitchen.authentication.authenticationRoute
+import hotkitchen.features.authentication.authenticationRoute
 import hotkitchen.database.daos.DefaultAuthenticationDao
 import hotkitchen.database.daos.DefaultUserDao
 import hotkitchen.database.setupDb
-import hotkitchen.user.UserDao
-import hotkitchen.user.userRoute
-import hotkitchen.validate.validateRoute
+import hotkitchen.features.user.UserDao
+import hotkitchen.features.user.userRoute
+import hotkitchen.features.validate.validateRoute
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
