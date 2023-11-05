@@ -5,6 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UserAuthentication(
     val email: String,
-    val token: String,
-    val userType: String
+    val password: String,
+    val userType: String = ""
 )

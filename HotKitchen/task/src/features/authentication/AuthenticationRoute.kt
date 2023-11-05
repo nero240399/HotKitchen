@@ -15,12 +15,15 @@ import java.util.*
 
 fun Route.authenticationRoute(authenticationDao: AuthenticationDao) {
     post("/signin") {
-        val userAuthentication = call.receive<UserAuthentication>()
+        val user = call.receive<UserAuthentication>()
         try {
-            val tokenAuthentication = generateToken(userAuthentication.email, userAuthentication.token, call)
-            val token = authenticationDao.signIn(userAuthentication.copy(token = tokenAuthentication))
-            call.response.status(HttpStatusCode.OK)
-            call.respondText { Json.encodeToString(Response(token = token)) }
+            val tokenAuthentication = generateToken(user.email, user.password, call)
+            val token = authenticationDao.signIn(user.copy(password = tokenAuthentication))
+            call.respondText(
+                Json.encodeToString(Response(token = token)),
+                ContentType.Application.Json,
+                HttpStatusCode.OK
+            )
         } catch (e: Exception) {
             call.respondText(
                 Json.encodeToString(Response(e.message!!)),
@@ -33,10 +36,13 @@ fun Route.authenticationRoute(authenticationDao: AuthenticationDao) {
         val user = call.receive<UserAuthentication>()
         try {
             validateSignUpInfo(user)
-            val token = generateToken(user.email, user.token, call)
-            authenticationDao.signUp(user.copy(token = token))
-            call.response.status(HttpStatusCode.OK)
-            call.respondText { Json.encodeToString(Response(token = token)) }
+            val token = generateToken(user.email, user.password, call)
+            authenticationDao.signUp(user.copy(password = token))
+            call.respondText(
+                Json.encodeToString(Response(token = token)),
+                ContentType.Application.Json,
+                HttpStatusCode.OK
+            )
         } catch (e: Exception) {
             call.respondText(
                 Json.encodeToString(Response(e.message ?: "")),
@@ -70,7 +76,6 @@ private fun generateToken(email: String, password: String, call: ApplicationCall
     return JWT.create()
         .withClaim("email", email)
         .withClaim("password", password)
-        .withExpiresAt(Date(System.currentTimeMillis() + 60000))
         .sign(Algorithm.HMAC256(secret))
 }
 
@@ -78,7 +83,7 @@ private fun validateSignUpInfo(user: UserAuthentication) {
     if (!user.email.isValidEmail()) {
         throw InvalidEmail
     }
-    if (!user.token.isValidPassword()) {
+    if (!user.password.isValidPassword()) {
         throw InvalidPassword
     }
 }

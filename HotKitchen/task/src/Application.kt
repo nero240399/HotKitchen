@@ -2,11 +2,12 @@ package hotkitchen
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import hotkitchen.features.authentication.authenticationRoute
 import hotkitchen.database.daos.DefaultAuthenticationDao
+import hotkitchen.database.daos.DefaultMealDao
 import hotkitchen.database.daos.DefaultUserDao
 import hotkitchen.database.setupDb
-import hotkitchen.features.user.UserDao
+import hotkitchen.features.authentication.authenticationRoute
+import hotkitchen.features.meal.mealRoute
 import hotkitchen.features.user.userRoute
 import hotkitchen.features.validate.validateRoute
 import io.ktor.http.*
@@ -36,6 +37,7 @@ fun Application.module() {
         authenticationRoute(authenticationDao)
         validateRoute(authenticationDao)
         userRoute(DefaultUserDao())
+        mealRoute(authenticationDao, DefaultMealDao())
     }
 }
 
