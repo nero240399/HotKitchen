@@ -6,7 +6,6 @@ import hotkitchen.authentication.authenticationRoute
 import hotkitchen.database.daos.DefaultAuthenticationDao
 import hotkitchen.database.daos.DefaultUserDao
 import hotkitchen.database.setupDb
-import hotkitchen.user.userRoute
 import hotkitchen.validate.validateRoute
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -34,7 +33,6 @@ fun Application.module() {
     }
     routing {
         authenticationRoute(DefaultAuthenticationDao())
-        userRoute(userDao)
         validateRoute(userDao)
     }
 }

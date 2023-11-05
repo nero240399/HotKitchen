@@ -1,8 +1,8 @@
 package hotkitchen.user
 
-interface UserDao {
+import hotkitchen.model.User
 
-    fun signUp(user: User)
+interface UserDao {
 
     fun getUser(email: String): User?
 }
